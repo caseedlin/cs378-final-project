@@ -1,10 +1,14 @@
-import datasets
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, \
-    AutoModelForQuestionAnswering, Trainer, TrainingArguments, HfArgumentParser
-from helpers import prepare_dataset_nli, prepare_train_dataset_qa, \
-    prepare_validation_dataset_qa, QuestionAnsweringTrainer, compute_accuracy
-import os
 import json
+import os
+
+import datasets
+from transformers import (AutoModelForQuestionAnswering,
+                          AutoModelForSequenceClassification, AutoTokenizer,
+                          HfArgumentParser, Trainer, TrainingArguments)
+
+from helpers import (QuestionAnsweringTrainer, compute_accuracy,
+                     prepare_dataset_nli, prepare_train_dataset_qa,
+                     prepare_validation_dataset_qa)
 
 NUM_PREPROCESSING_WORKERS = 2
 
@@ -74,6 +78,7 @@ def main():
     model_classes = {'qa': AutoModelForQuestionAnswering,
                      'nli': AutoModelForSequenceClassification}
     model_class = model_classes[args.task]
+    
     # Initialize the model and tokenizer from the specified pretrained model/checkpoint
     model = model_class.from_pretrained(args.model, **task_kwargs)
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)

@@ -1,10 +1,11 @@
-import numpy as np
 import collections
-from collections import defaultdict, OrderedDict
-from transformers import Trainer, EvalPrediction
-from transformers.trainer_utils import PredictionOutput
+from collections import OrderedDict, defaultdict
 from typing import Tuple
+
+import numpy as np
 from tqdm.auto import tqdm
+from transformers import EvalPrediction, Trainer
+from transformers.trainer_utils import PredictionOutput
 
 QA_MAX_ANSWER_LENGTH = 30
 
@@ -197,6 +198,8 @@ def postprocess_qa_predictions(examples,
             # This is what will allow us to map some the positions in our logits
             # to span of texts in the original context.
             offset_mapping = features[feature_index]["offset_mapping"]
+            
+            print(f"offset mapping for {feature_index}: {offset_mapping}")
 
             # Go through all possibilities for the `n_best_size` greater start and end logits.
             start_indexes = np.argsort(start_logits)[
@@ -211,7 +214,9 @@ def postprocess_qa_predictions(examples,
                             start_index >= len(offset_mapping)
                             or end_index >= len(offset_mapping)
                             or offset_mapping[start_index] is None
+                            or len(offset_mapping[start_index]) == 0
                             or offset_mapping[end_index] is None
+                            or len(offset_mapping[end_index]) == 0
                     ):
                         continue
                     # Don't consider answers with a length that is either < 0 or > max_answer_length.
