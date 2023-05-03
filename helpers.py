@@ -116,8 +116,20 @@ def prepare_train_dataset_qa(examples, tokenizer, max_seq_length=None):
     return tokenized_examples
 
 
-def prepare_validation_dataset_qa(examples, tokenizer):
+def prepare_validation_dataset_qa(examples, tokenizer, ablation=False):
     questions = [q.lstrip() for q in examples["question"]]
+    if ablation:
+        def remove_negations(text):
+            length = len(text)
+            negations = ['not', 'no', 'never', 'nothing', 'nobody', 'nowhere', 'scarcely', 'hardly', 'rarely', 'neither', 'none', 'non-', 'un-', 'dis-']
+            for negation in negations:
+                text = text.replace(negation, '')
+            if len(text) < length:
+                print(f'removed {length - len(text)} negation words from context')
+            return text
+        for i in range(len(examples["context"])):
+            examples["context"][i] = remove_negations(examples["context"][i])
+       
     max_seq_length = tokenizer.model_max_length
     tokenized_examples = tokenizer(
         questions,

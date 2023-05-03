@@ -4,6 +4,7 @@ import os
 import datasets
 from transformers import (AutoModelForQuestionAnswering,
                           AutoModelForSequenceClassification, AutoTokenizer,
+                          ElectraConfig, ElectraForQuestionAnswering,
                           HfArgumentParser, Trainer, TrainingArguments)
 
 from helpers import (QuestionAnsweringTrainer, compute_accuracy,
@@ -32,6 +33,15 @@ def main():
     #     Where to put the trained model checkpoint(s) and any eval predictions.
     #     *This argument is required*.
 
+    argp.add_argument('--use_adversarial_dataset', type=bool,
+                      default=False,
+                      help="""This argument will use the adversarial dataset instead of having to type out the actual name.""")
+    argp.add_argument('--do_hidden_layer_ablation', type=bool,
+                      default=False,
+                      help="""This argument will enable the model to operate with one less hidden layer ablation for analysis.""")
+    argp.add_argument('--do_context_filtering_ablation', type=bool,
+                      default=False,
+                      help="""This argument will enable the model to operate with a no context ablation for analysis.""")
     argp.add_argument('--model', type=str,
                       default='google/electra-small-discriminator',
                       help="""This argument specifies the base model to fine-tune.
@@ -69,7 +79,7 @@ def main():
         # MNLI has two validation splits (one with matched domains and one with mismatched domains). Most datasets just have one "validation" split
         eval_split = 'validation_matched' if dataset_id == ('glue', 'mnli') else 'validation'
         # Load the raw data
-        dataset = datasets.load_dataset(*dataset_id)
+        dataset = datasets.load_dataset("adversarial_qa", "adversarialQA") if args.use_adversarial_dataset else datasets.load_dataset(*dataset_id)
     
     # NLI models need to have the output label count specified (label 0 is "entailed", 1 is "neutral", and 2 is "contradiction")
     task_kwargs = {'num_labels': 3} if args.task == 'nli' else {}
@@ -79,14 +89,20 @@ def main():
                      'nli': AutoModelForSequenceClassification}
     model_class = model_classes[args.task]
     
+    # reduce hidden layers by 1 from 12 to 11
+    if args.do_hidden_layer_ablation:
+        task_kwargs = {'num_hidden_layers': 11}
+
     # Initialize the model and tokenizer from the specified pretrained model/checkpoint
     model = model_class.from_pretrained(args.model, **task_kwargs)
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
+    
+    
 
     # Select the dataset preprocessing function (these functions are defined in helpers.py)
     if args.task == 'qa':
         prepare_train_dataset = lambda exs: prepare_train_dataset_qa(exs, tokenizer)
-        prepare_eval_dataset = lambda exs: prepare_validation_dataset_qa(exs, tokenizer)
+        prepare_eval_dataset = lambda exs: prepare_validation_dataset_qa(exs, tokenizer, ablation=args.do_context_filtering_ablation)
     elif args.task == 'nli':
         prepare_train_dataset = prepare_eval_dataset = \
             lambda exs: prepare_dataset_nli(exs, tokenizer, args.max_length)
